@@ -1,9 +1,9 @@
 # Lab 1 Report: Python Data Pipeline
-**Student:** [Your Name] | **Date:** February 2026
+**Student:** Yassine TAMIM | **Date:** February 2026
 
 ---
 
-## Part A: Environment Setup ✅
+## Part A: Environment Setup 
 
 Created virtual environment with Python 3.10 and installed:
 - `google-play-scraper` (API access)
