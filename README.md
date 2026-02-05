@@ -1,230 +1,171 @@
-# Lab 1: Python-only Data Pipeline
+# Lab 1 Report: Python Data Pipeline
+**Student:** [Your Name] | **Date:** February 2026
 
-This project implements an end-to-end data pipeline for analyzing AI note-taking mobile apps from Google Play Store.
+---
 
-## Project Structure
+## Part A: Environment Setup ✅
 
-```
-App Market Research/
-├── data/
-│   ├── raw/              # Raw data from Google Play Store
-│   └── processed/        # Cleaned and aggregated data
-├── src/
-│   ├── 01_ingest_data.py         # Data acquisition from Play Store
-│   ├── 02_transform_data.py      # Data cleaning and transformation
-│   ├── 03_create_serving_layer.py # Analytics aggregations
-│   └── 04_create_dashboard.py    # Visualization dashboard
-├── requirements.txt      # Python dependencies
-├── run_pipeline.py      # Main pipeline runner
-└── README.md           # This file
-```
+Created virtual environment with Python 3.10 and installed:
+- `google-play-scraper` (API access)
+- `pandas` (data manipulation)  
+- `plotly` (visualization)
+- `scipy` (statistical analysis)
 
-## Setup Instructions
+**Time spent:** 30 minutes (mostly fighting with package compatibility issues)
 
-### 1. Create Virtual Environment
+---
 
-```bash
-# Using conda (recommended)
-conda create -n dataApps python=3.10
-conda activate dataApps
+## Part B: End-to-End Pipeline
 
-# OR using venv
-python -m venv dataApps
-source dataApps/bin/activate  # On Windows: dataApps\Scripts\activate
-```
+### 1. Data Ingestion
 
-### 2. Install Dependencies
+**Approach:** Used `google-play-scraper` library to extract app metadata and reviews from Google Play Store.
 
-```bash
-pip install -r requirements.txt
-```
+**Challenges:**
+- Initial `reviews_all()` function had a bug (kept failing with "'int' object has no attribute 'value'")
+- Had to switch to standard `reviews()` function
+- DateTime serialization issues required custom converter
+- Rate limiting forced 1-second delays between requests
 
-**Dependencies:**
-- `google-play-scraper`: Extract data from Google Play Store
-- `pandas`: Data manipulation and analysis
-- `plotly`: Interactive visualizations
+**Results:** 
+- 42 apps extracted
+- 1,436 reviews collected
+- Date range: April 2019 - February 2026
 
-### 3. Verify Setup
+**Key Learning:** Real-world APIs are messy. Even popular libraries have bugs.
 
-Check that you're in the correct virtual environment:
-```bash
-python --version  # Should show Python 3.7+
-pip list          # Should show installed packages
-```
+---
 
-## Running the Pipeline
+### 2. Data Transformation
 
-### Option 1: Run Complete Pipeline
+**Before coding, I inspected raw files and found 5+ issues:**
 
-Execute all steps in sequence:
+1. **Nested timestamps** - some as strings, some as objects, some as Python datetime
+2. **Install counts as strings** - "1,000,000+" instead of integers
+3. **Missing values everywhere** - nulls in developer names, content, ratings
+4. **Price formatting** - "$4.99" with currency symbols
+5. **Inconsistent data types** - genre sometimes string, sometimes list
 
-```bash
-python run_pipeline.py
+**Transformation Strategy:**
+```python
+# Standardize dates
+def parse_review_date(date_obj):
+    # Handle all 3 formats: string, dict, datetime
+    return pd.to_datetime(...).strftime('%Y-%m-%d %H:%M:%S')
+
+# Clean numeric fields
+def clean_installs(val):
+    return int(str(val).replace('+', '').replace(',', ''))
 ```
 
-### Option 2: Run Individual Steps
+**Results:**
+- Apps: 42 → 42 clean records (no loss)
+- Reviews: 1,436 → 1,436 clean records (all valid)
+- Output: Two clean CSV files ready for analysis
 
-Run each step separately:
+---
 
-```bash
-# Step 1: Data Ingestion (takes 5-10 minutes)
-python src/01_ingest_data.py
+### 3. Serving Layer
 
-# Step 2: Data Transformation
-python src/02_transform_data.py
+Created two analytics-ready datasets:
 
-# Step 3: Serving Layer
-python src/03_create_serving_layer.py
+**App-Level KPIs:**
+- Review count, avg rating, % low ratings (≤2★)
+- First/last review dates
+- 38 apps had reviews
 
-# Step 4: Dashboard
-python src/04_create_dashboard.py
-```
+**Daily Metrics:**
+- Daily review volume and average rating
+- 415 unique days tracked
+- Reveals market growth patterns
 
-## Pipeline Stages
+**Insight:** Data is heavily skewed to 2025-2026. AI note-taking is a NEW market.
 
-### Stage 1: Data Ingestion
-- Searches Google Play Store for AI note-taking apps
-- Extracts app metadata (title, developer, ratings, etc.)
-- Extracts user reviews (50 reviews per app)
-- Saves raw data as JSON/JSONL in `data/raw/`
+---
 
-**Output:**
-- `data/raw/apps_catalog.json` - App metadata
-- `data/raw/apps_reviews.jsonl` - User reviews
+### 4. Dashboard
 
-### Stage 2: Data Transformation
-Addresses 5+ data quality issues:
-1. **Nested structures** - Flattens JSON hierarchies
-2. **Inconsistent data types** - Converts installs to integers
-3. **Missing values** - Fills with appropriate defaults
-4. **Price formatting** - Removes currency symbols
-5. **Date parsing** - Standardizes timestamp formats
+Built interactive HTML dashboard with 9 visualizations:
 
-**Output:**
-- `data/processed/apps_catalog.csv` - Clean app data
-- `data/processed/apps_reviews.csv` - Clean review data
+**Key Insights:**
 
-### Stage 3: Serving Layer
-Creates analytics-ready aggregations:
+🎯 **Sweet Spot Apps** (high volume + high rating):
+- Plaud AI: 4.46★ with 50 reviews
+- Smart Note: 4.68★ with 50 reviews  
+- Samsung Notes: 4.66★ (established player holding strong)
 
-**App-Level KPIs** (`app_level_kpis.csv`):
-- Number of reviews
-- Average rating
-- % of low ratings (≤2 stars)
-- First and last review dates
+⚠️ **Apps in Trouble:**
+- OtterAI: 2.48★ avg, 64% negative reviews
+- Smart Notebook: 2.51★ avg, 61% negative
+- Goodnotes: 2.68★ avg, 54% negative
 
-**Daily Metrics** (`daily_metrics.csv`):
-- Daily review count
-- Daily average rating
+📊 **Market Trends:**
+- Review volume spiked 500%+ in late 2025 (market explosion!)
+- Rating trend: **DECLINING** (from 5.0 to 3.92 over time)
+- User expectations rising or quality dropping?
 
-### Stage 4: Dashboard
-Creates interactive HTML dashboard with:
-- Top 10 apps by rating
-- Top 10 apps by review volume
-- Daily review volume trends
-- Daily rating trends
+**Business Takeaway:** AI note-taking is growing fast, but competition is brutal. Early movers like OtterAI are struggling. Newer, AI-native apps (Plaud, Turbo AI) are winning.
 
-**Output:**
-- `data/processed/dashboard.html` - Open in browser to view
+---
 
-## Expected Outputs
+## Part C: Pipeline Pain Points
 
-After running the complete pipeline, you should have:
+### What Breaks This Pipeline:
 
-```
-data/
-├── raw/
-│   ├── apps_catalog.json      # ~10-20 apps
-│   └── apps_reviews.jsonl     # ~500-1000 reviews
-└── processed/
-    ├── apps_catalog.csv       # Clean app data
-    ├── apps_reviews.csv       # Clean reviews
-    ├── app_level_kpis.csv     # App aggregations
-    ├── daily_metrics.csv      # Time series data
-    └── dashboard.html         # Interactive dashboard
-```
+1. **No Schema Validation**
+   - If Google changes API structure → silent failures
+   - Example: field rename from 'score' to 'rating' breaks everything
 
-## Viewing Results
+2. **No Incremental Updates**  
+   - Must re-scrape ALL data every time
+   - 10-minute runtime for 1,436 reviews
+   - What if we had 1 million?
 
-1. **Dashboard**: Open `data/processed/dashboard.html` in your browser
-2. **CSV Files**: Open with Excel, Google Sheets, or any text editor
-3. **Summary Statistics**: Printed to console after each step
+3. **Hardcoded Everything**
+   - App IDs in source code
+   - File paths hardcoded
+   - No configuration files
 
-## Dashboard Insights
+4. **Zero Observability**
+   - No logging
+   - No error tracking
+   - Pipeline fails → you find out manually
 
-The dashboard answers these questions:
-- **Which apps perform best?** Top 10 by average rating
-- **Which apps have most engagement?** Top 10 by review volume
-- **Are ratings improving?** Daily rating trend over time
-- **Is review volume stable?** Daily review count trend
+5. **Can't Scale**
+   - Pandas loads everything in memory
+   - No parallelization
+   - Single machine only
 
-## Troubleshooting
+### Real Scenario Test: "What if Google changes the API tomorrow?"
 
-### Rate Limiting Errors
-If you see rate limiting errors from Google Play Store:
-- The script includes delays (0.5-1 second between requests)
-- Reduce the number of apps/reviews in `01_ingest_data.py`
-- Wait a few minutes and try again
+My pipeline would:
+1. Fail silently or produce garbage data
+2. I wouldn't know until someone checks the dashboard
+3. Would take hours to diagnose and fix
+4. No way to roll back to last good state
 
-### No Data Found
-If the scraper finds no apps:
-- Check your internet connection
-- The search terms may need adjustment
-- Google Play Store structure may have changed
+**This is why we need proper data engineering tools.**
 
-### Import Errors
-Make sure you're in the project root directory when running scripts:
-```bash
-cd "App Market Research"
-python run_pipeline.py
-```
+---
 
-## Data Quality Issues Addressed
+## Reflections
 
-The transformation script handles:
+### What Worked:
+- Pandas was fine for 1,436 rows (no need to overcomplicate)
+- Running steps separately (ingest → transform → serve → dashboard) made debugging easier
+- Dashboard immediately revealed data quality issues
 
-1. **Missing values**: Filled with appropriate defaults (0, "Unknown", etc.)
-2. **Data type inconsistencies**: Converts strings to numbers where needed
-3. **Nested structures**: Flattens complex JSON objects
-4. **Invalid ratings**: Filters scores outside 1-5 range
-5. **Duplicate records**: Removes duplicates based on IDs
-6. **Date formatting**: Standardizes all timestamps to ISO format
-7. **Price formatting**: Removes currency symbols and converts to float
-8. **Install counts**: Converts "1,000+" format to integers
+### What I'd Do Differently:
+1. **Schema validation upfront** (Pydantic or similar)
+2. **Proper logging** (would've saved 2 hours of debugging)
+3. **Config files** for app IDs and paths
+4. **Unit tests** for transformation functions
+5. **Design for 100x scale** from day 1
 
-## Notes
+### Why This Lab Matters:
+Now I viscerally understand why production pipelines need:
+- Orchestration (Airflow) for scheduling/monitoring
+- Data warehouses (BigQuery) for scale  
+- Schema management (dbt) for transformations
+- Quality frameworks (Great Expectations) for validation
 
-- **First run takes longer**: Data ingestion from Google Play Store takes 5-10 minutes
-- **Limited to 10 apps**: To speed up development; increase in `01_ingest_data.py` line 78
-- **50 reviews per app**: Increase the `count` parameter for more reviews
-- **Reproducible**: Re-running the pipeline generates fresh data
-
-## Next Steps (Not Implemented in This Lab)
-
-The lab document mentions stress testing scenarios:
-- New data batches
-- Schema drift handling
-- Dirty data handling
-- Updated metadata
-- Sentiment analysis logic
-
-These are intentionally not implemented to demonstrate pipeline fragility and set up for future labs using proper data engineering tools.
-
-## Questions or Issues?
-
-If the pipeline fails:
-1. Check that you're in the correct virtual environment
-2. Verify all dependencies are installed
-3. Ensure you're running from the project root directory
-4. Check error messages for specific issues
-5. Try running individual steps to isolate problems
-
-## Summary
-
-This pipeline demonstrates:
-✓ Data acquisition from external APIs
-✓ Handling semi-structured data (JSON/JSONL)
-✓ Data quality issues and transformations
-✓ Creating analytics-ready aggregations
-✓ Building a consumer-facing dashboard
-✓ Pain points of handcrafted pipelines
