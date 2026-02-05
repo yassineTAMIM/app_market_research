@@ -16,8 +16,9 @@ def run_pipeline():
     print("\n[STEP 1/4] Data Ingestion")
     print("-" * 60)
     try:
-        from src import ingest_data
-        ingest_data.main()
+        import importlib
+        mod = importlib.import_module('src.01_ingest_data')
+        mod.main()
     except Exception as e:
         print(f"ERROR in data ingestion: {e}")
         print("Continuing with existing raw data if available...")
@@ -26,8 +27,9 @@ def run_pipeline():
     print("\n[STEP 2/4] Data Transformation")
     print("-" * 60)
     try:
-        from src import transform_data
-        transform_data.main()
+        import importlib
+        mod = importlib.import_module('src.02_transform_data')
+        mod.main()
     except Exception as e:
         print(f"ERROR in data transformation: {e}")
         sys.exit(1)
@@ -36,8 +38,9 @@ def run_pipeline():
     print("\n[STEP 3/4] Creating Serving Layer")
     print("-" * 60)
     try:
-        from src import create_serving_layer
-        create_serving_layer.main()
+        import importlib
+        mod = importlib.import_module('src.03_create_serving_layer')
+        mod.main()
     except Exception as e:
         print(f"ERROR in serving layer creation: {e}")
         sys.exit(1)
@@ -46,8 +49,9 @@ def run_pipeline():
     print("\n[STEP 4/4] Creating Dashboard")
     print("-" * 60)
     try:
-        from src import create_dashboard
-        create_dashboard.main()
+        import importlib
+        mod = importlib.import_module('src.04_create_dashboard')
+        mod.main()
     except Exception as e:
         print(f"ERROR in dashboard creation: {e}")
         sys.exit(1)
