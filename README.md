@@ -1,171 +1,187 @@
-# Lab 1 Report: Python Data Pipeline
-**Student:** Yassine TAMIM | **Date:** February 2026
+# 🤖 AI Note-Taking Apps — Market Intelligence Pipeline
+
+![Python](https://img.shields.io/badge/Python-3.13.2-blue?logo=python&logoColor=white)
+![dbt](https://img.shields.io/badge/dbt-1.11.6-FF694B?logo=dbt&logoColor=white)
+![DuckDB](https://img.shields.io/badge/DuckDB-0.9.2-FCD034?logo=duckdb&logoColor=black)
+![Plotly](https://img.shields.io/badge/Plotly-5.18.0-3F4F75?logo=plotly&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Complete-brightgreen)
+
+End-to-end data pipeline that scrapes Google Play Store reviews for AI note-taking apps, transforms them into an analytics-ready star schema, and serves insights via an interactive dashboard.
 
 ---
 
-## Part A: Environment Setup 
+## 📐 Architecture
 
-Created virtual environment with Python 3.10 and installed:
-- `google-play-scraper` (API access)
-- `pandas` (data manipulation)  
-- `plotly` (visualization)
-- `scipy` (statistical analysis)
-
-**Time spent:** 30 minutes (mostly fighting with package compatibility issues)
-
----
-
-## Part B: End-to-End Pipeline
-
-### 1. Data Ingestion
-
-**Approach:** Used `google-play-scraper` library to extract app metadata and reviews from Google Play Store.
-
-**Challenges:**
-- Initial `reviews_all()` function had a bug (kept failing with "'int' object has no attribute 'value'")
-- Had to switch to standard `reviews()` function
-- DateTime serialization issues required custom converter
-- Rate limiting forced 1-second delays between requests
-
-**Results:** 
-- 42 apps extracted
-- 1,436 reviews collected
-- Date range: April 2019 - February 2026
-
-**Key Learning:** Real-world APIs are messy. Even popular libraries have bugs.
-
----
-
-### 2. Data Transformation
-
-**Before coding, I inspected raw files and found 5+ issues:**
-
-1. **Nested timestamps** - some as strings, some as objects, some as Python datetime
-2. **Install counts as strings** - "1,000,000+" instead of integers
-3. **Missing values everywhere** - nulls in developer names, content, ratings
-4. **Price formatting** - "$4.99" with currency symbols
-5. **Inconsistent data types** - genre sometimes string, sometimes list
-
-**Transformation Strategy:**
-```python
-# Standardize dates
-def parse_review_date(date_obj):
-    # Handle all 3 formats: string, dict, datetime
-    return pd.to_datetime(...).strftime('%Y-%m-%d %H:%M:%S')
-
-# Clean numeric fields
-def clean_installs(val):
-    return int(str(val).replace('+', '').replace(',', ''))
+```
+Google Play API
+      │
+      ▼
+01_ingest_data.py          ← Raw scraping (42 apps, 1,436 reviews)
+      │
+      ▼
+02_transform_data.py       ← Cleaning, type casting, deduplication
+      │
+      ▼
+load_to_duckdb.py          ← Idempotent loader into DuckDB raw schema
+      │
+      ▼
+dbt build                  ← Star schema: staging → dimensions → fact
+      │
+      ▼
+app_market.duckdb          ← Serving layer (Power BI / Metabase / DuckDB CLI)
 ```
 
-**Results:**
-- Apps: 42 → 42 clean records (no loss)
-- Reviews: 1,436 → 1,436 clean records (all valid)
-- Output: Two clean CSV files ready for analysis
+---
+
+## 📦 Stack
+
+| Layer | Tool | Version |
+|-------|------|---------|
+| Scraping | `google-play-scraper` | 1.2.7 |
+| Transformation | `pandas` | 2.2.0 |
+| Analytics DB | `DuckDB` | 0.9.2 |
+| Data Modeling | `dbt-core` + `dbt-duckdb` | 1.7.4 / 1.7.2 |
+| Dashboard | `Plotly` | 5.18.0 |
 
 ---
 
-### 3. Serving Layer
+## 🗂️ Project Structure
 
-Created two analytics-ready datasets:
-
-**App-Level KPIs:**
-- Review count, avg rating, % low ratings (≤2★)
-- First/last review dates
-- 38 apps had reviews
-
-**Daily Metrics:**
-- Daily review volume and average rating
-- 415 unique days tracked
-- Reveals market growth patterns
-
-**Insight:** Data is heavily skewed to 2025-2026. AI note-taking is a NEW market.
-
----
-
-### 4. Dashboard
-
-Built interactive HTML dashboard with 9 visualizations:
-
-**Key Insights:**
-
-🎯 **Sweet Spot Apps** (high volume + high rating):
-- Plaud AI: 4.46★ with 50 reviews
-- Smart Note: 4.68★ with 50 reviews  
-- Samsung Notes: 4.66★ (established player holding strong)
-
-⚠️ **Apps in Trouble:**
-- OtterAI: 2.48★ avg, 64% negative reviews
-- Smart Notebook: 2.51★ avg, 61% negative
-- Goodnotes: 2.68★ avg, 54% negative
-
-📊 **Market Trends:**
-- Review volume spiked 500%+ in late 2025 (market explosion!)
-- Rating trend: **DECLINING** (from 5.0 to 3.92 over time)
-- User expectations rising or quality dropping?
-
-**Business Takeaway:** AI note-taking is growing fast, but competition is brutal. Early movers like OtterAI are struggling. Newer, AI-native apps (Plaud, Turbo AI) are winning.
+```
+App_Market_Research/
+├── src/
+│   ├── 01_ingest_data.py            # Google Play scraper
+│   ├── 02_transform_data.py         # Pandas cleaning pipeline
+│   ├── 03_create_serving_layer.py   # KPI aggregations
+│   └── 04_create_dashboard.py       # Plotly HTML dashboard
+│
+├── dbt/
+│   ├── models/
+│   │   ├── staging/                 # stg_apps, stg_reviews (views)
+│   │   └── marts/                   # dim_*, fact_reviews (tables)
+│   ├── snapshots/                   # SCD2 on developer names
+│   └── tests/                       # 3 custom data quality tests
+│
+├── scripts/
+│   └── load_to_duckdb.py            # CSV → DuckDB raw schema
+│
+├── data/
+│   ├── raw/                         # Immutable scraped files
+│   ├── processed/                   # Lab 1 clean CSVs
+│   └── app_market.duckdb            # DuckDB analytical database
+│
+└── requirements.txt
+```
 
 ---
 
-## Part C: Pipeline Pain Points
+## ⭐ Star Schema
 
-### What Breaks This Pipeline:
+```
+                    dim_date
+                       │
+dim_categories ── dim_apps ── fact_reviews ── dim_developers (SCD2)
+```
 
-1. **No Schema Validation**
-   - If Google changes API structure → silent failures
-   - Example: field rename from 'score' to 'rating' breaks everything
-
-2. **No Incremental Updates**  
-   - Must re-scrape ALL data every time
-   - 10-minute runtime for 1,436 reviews
-   - What if we had 1 million?
-
-3. **Hardcoded Everything**
-   - App IDs in source code
-   - File paths hardcoded
-   - No configuration files
-
-4. **Zero Observability**
-   - No logging
-   - No error tracking
-   - Pipeline fails → you find out manually
-
-5. **Can't Scale**
-   - Pandas loads everything in memory
-   - No parallelization
-   - Single machine only
-
-### Real Scenario Test: "What if Google changes the API tomorrow?"
-
-My pipeline would:
-1. Fail silently or produce garbage data
-2. I wouldn't know until someone checks the dashboard
-3. Would take hours to diagnose and fix
-4. No way to roll back to last good state
-
-**This is why we need proper data engineering tools.**
+| Table | Type | Rows | Description |
+|-------|------|------|-------------|
+| `fact_reviews` | Incremental | 1,436 | One row per review — rating, thumbs_up, FKs |
+| `dim_apps` | Table | 42 | App metadata with surrogate key |
+| `dim_developers` | Table (SCD2) | 42+ | Developer history via dbt snapshot |
+| `dim_categories` | Table | ~10 | App genres |
+| `dim_date` | Table | 3,287 | Date spine 2019–2027, YYYYMMDD key |
 
 ---
 
-## Reflections
+## 🚀 Quick Start
 
-### What Worked:
-- Pandas was fine for 1,436 rows (no need to overcomplicate)
-- Running steps separately (ingest → transform → serve → dashboard) made debugging easier
-- Dashboard immediately revealed data quality issues
+### 1. Install dependencies
+```bash
+conda activate dataApps
+pip install -r requirements.txt
+```
 
-### What I'd Do Differently:
-1. **Schema validation upfront** (Pydantic or similar)
-2. **Proper logging** (would've saved 2 hours of debugging)
-3. **Config files** for app IDs and paths
-4. **Unit tests** for transformation functions
-5. **Design for 100x scale** from day 1
+### 2. Run Lab 1 pipeline
+```bash
+python run_pipeline.py
+```
 
-### Why This Lab Matters:
-Now I viscerally understand why production pipelines need:
-- Orchestration (Airflow) for scheduling/monitoring
-- Data warehouses (BigQuery) for scale  
-- Schema management (dbt) for transformations
-- Quality frameworks (Great Expectations) for validation
+### 3. Load into DuckDB
+```bash
+python scripts/load_to_duckdb.py
+```
 
+### 4. Run dbt pipeline
+```bash
+cd dbt
+dbt snapshot --profiles-dir .    # SCD2 first
+dbt build --profiles-dir .       # Build all models + run 37 tests
+```
+
+### 5. Verify
+```bash
+duckdb ../data/app_market.duckdb
+SELECT COUNT(*) FROM fact_reviews;   -- 1436
+```
+
+---
+
+## ✅ Data Quality
+
+37 automated tests — **0 failures**.
+
+| Test | Type | What it catches |
+|------|------|-----------------|
+| `not_null` / `unique` on all PKs & FKs | Generic | Missing or duplicate keys |
+| `accepted_values` on booleans | Generic | Data type corruption |
+| FK relationships (6 pairs) | Relationships | Referential integrity violations |
+| `assert_no_orphan_reviews` | Custom SQL | Reviews linked to unknown apps |
+| `assert_rating_distribution_sane` | Custom SQL | >95% same rating (scraping anomaly) |
+| `assert_no_data_loss` | Custom SQL | Ghost rows from deleted upstream batches |
+
+---
+
+## 📊 Key Findings
+
+| Category | App | Rating | Signal |
+|----------|-----|--------|--------|
+| 🏆 Top Performer | Smart Note — Notes | 4.68 ★ | Highest rated |
+| 🏆 Top Performer | Samsung Notes | 4.66 ★ | Established leader |
+| ⚠️ Danger Zone | OtterAI Transcribe | 2.48 ★ | 64% negative reviews |
+| ⚠️ Danger Zone | Smart Notebook | 2.51 ★ | 61.5% negative reviews |
+
+> 📈 Market growth: **+592%** review volume spike in late 2025 (24.23 reviews/day).  
+> 📉 Rating trend: declining from 5.0 → ~3.5 — expectations outpacing product quality.
+
+---
+
+## 🔄 Adding a New Review Batch
+
+```bash
+# 1. Append new batch
+python scripts/load_to_duckdb.py --new-reviews data/raw/batch2.jsonl
+
+# 2. Rebuild (only processes new rows)
+cd dbt && dbt build --profiles-dir .
+```
+
+The incremental model processes only rows where `_loaded_at > MAX(_loaded_at)` in the existing table.
+
+---
+
+## 📁 Data Lineage
+
+```
+raw.apps_catalog ──► stg_apps ──► dim_categories
+                  │            ├─► dim_developers (via scd2_developers snapshot)
+                  │            └─► dim_apps
+                  │                    │
+raw.apps_reviews ──► stg_reviews ──► fact_reviews ──► assert_no_orphan_reviews
+                                   │               ├─► assert_rating_distribution_sane
+                                   │               └─► assert_no_data_loss
+                    dim_date ──────┘
+```
+
+---
+
+*Lab 1 & Lab 2 — Data Engineering | Centrale Casablanca | February 2026*
