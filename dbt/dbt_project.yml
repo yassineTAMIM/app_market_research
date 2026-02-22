@@ -1,0 +1,21 @@
+name: 'app_reviews'
+version: '1.0.0'
+config-version: 2
+
+profile: 'app_reviews'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  app_reviews:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+      fact_reviews:
+        +materialized: incremental
+        +unique_key: review_id

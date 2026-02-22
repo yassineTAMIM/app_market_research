@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Raw tables loaded from your processed CSVs via load_to_duckdb.py"
+    tables:
+      - name: apps_catalog
+        description: "App metadata from data/processed/apps_catalog.csv"
+        columns:
+          - name: appId
+            tests: [not_null, unique]
+          - name: title
+            tests: [not_null]
+
+      - name: apps_reviews
+        description: "User reviews from data/processed/apps_reviews.csv"
+        columns:
+          - name: reviewId
+            tests: [not_null]
+          - name: score
+            tests: [not_null]

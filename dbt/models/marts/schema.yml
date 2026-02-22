@@ -1,0 +1,87 @@
+version: 2
+
+models:
+  - name: dim_apps
+    description: "One row per app. FKs to dim_developers and dim_categories."
+    columns:
+      - name: app_key
+        tests: [not_null, unique]
+      - name: app_id
+        tests: [not_null, unique]
+      - name: developer_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_developers')
+                field: developer_key
+      - name: category_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_categories')
+                field: category_key
+      - name: is_paid
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: dim_developers
+    description: "Developer dimension with SCD2 history."
+    columns:
+      - name: developer_key
+        tests: [not_null]
+      - name: developer_name
+        tests: [not_null]
+      - name: is_current
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: dim_categories
+    description: "App categories -- Type-1 (no history)."
+    columns:
+      - name: category_key
+        tests: [not_null, unique]
+      - name: category_name
+        tests: [not_null, unique]
+
+  - name: dim_date
+    description: "Date spine 2019-2027."
+    columns:
+      - name: date_key
+        tests: [not_null, unique]
+
+  - name: fact_reviews
+    description: "One row per review. Incremental -- appends new batches only."
+    columns:
+      - name: review_id
+        tests: [not_null, unique]
+      - name: app_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_apps')
+                field: app_key
+      - name: developer_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_developers')
+                field: developer_key
+      - name: date_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: rating
+        tests: [not_null]

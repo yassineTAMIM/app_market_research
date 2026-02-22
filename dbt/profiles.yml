@@ -1,0 +1,9 @@
+app_reviews:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Path is relative to where you run dbt (from inside the dbt/ folder)
+      # ../data/app_market.duckdb sits next to your existing data/ folder
+      path: "../data/app_market.duckdb"
+      threads: 4

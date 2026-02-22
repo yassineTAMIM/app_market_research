@@ -29,3 +29,8 @@ data/processed/*
 dist/
 build/
 *.egg-info/
+
+# dbt artifacts (generated, not source code)
+dbt/target/
+dbt/logs/
+dbt/.user.yml
